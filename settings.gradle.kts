@@ -23,6 +23,6 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "PDF reader"
+rootProject.name = "PDF Flow"
 include(":app")
  

@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">PDF reader</string>
+    <string name="app_name">PDF Flow</string>
     <string name="recent_file">Recent Files</string>
     <string name="my_documents">My Documents</string>
     <string name="open_pdf">Open PDF</string>
@@ -145,6 +145,15 @@
     <string name="merging_pdfs">Merging PDFs…</string>
     <string name="failed_to_merge_pdfs">Failed to merge PDFs</string>
     <string name="encrypted_pdf_error">Cannot merge password-protected or encrypted PDFs</string>
+
+    <!-- In-Document Search & Edit FAB -->
+    <string name="search_in_document">Search in document…</string>
+    <string name="search">Search</string>
+    <string name="next_match">Next match</string>
+    <string name="previous_match">Previous match</string>
+    <string name="clear_search">Clear search</string>
+    <string name="no_matches_found">No matches found</string>
+    <string name="edit_pdf">Edit PDF</string>
 
     <!-- About Section -->
     <string name="settings_about_section">About</string>
