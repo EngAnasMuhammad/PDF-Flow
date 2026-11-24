@@ -43,6 +43,7 @@
     <string name="done">Done</string>
     <string name="pen">Pen</string>
     <string name="highlighter">Highlighter</string>
+    <string name="highlight">Highlight</string>
     <string name="eraser">Eraser</string>
     <string name="pan_mode">Pan</string>
     <string name="undo">Undo</string>
@@ -161,4 +162,14 @@
     <string name="settings_developer_name">Anas Muhammad</string>
     <string name="settings_github_repo">GitHub Repository</string>
     <string name="settings_app_tagline">Fast PDF Reader &amp; Editor • Offline First</string>
+
+    <!-- Text Selection Actions -->
+    <string name="copy">Copy</string>
+    <string name="translate">Translate</string>
+    <string name="share">Share</string>
+    <string name="select_all">Select All</string>
+    <string name="no_translation_app_found">No browser or translation app found</string>
+
+    <!-- Pen & Highlighter Smart Rule Hint -->
+    <string name="straighten_stroke_tip">Tip: Hold at the end of a stroke to straighten</string>
 </resources>

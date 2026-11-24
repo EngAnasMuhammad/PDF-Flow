@@ -1,6 +1,7 @@
 package com.anasdev.pdfreader.presentation.ui.screens.pdfScreen
 
 import android.content.res.Configuration
+import android.graphics.RectF
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -34,10 +35,10 @@ import androidx.compose.material.icons.automirrored.filled.DriveFileMove
 import androidx.compose.material.icons.automirrored.filled.Redo
 import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PanTool
 import androidx.compose.material.icons.filled.SaveAlt
+import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.DropdownMenu
@@ -46,6 +47,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
@@ -64,6 +66,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -104,6 +107,8 @@ import com.anasdev.pdfreader.presentation.pdf.PdfLoadErrorScreen
 import com.anasdev.pdfreader.presentation.pdf.PdfTouchHandler
 import com.anasdev.pdfreader.presentation.pdf.SavedSignaturePickerDialog
 import com.anasdev.pdfreader.presentation.pdf.TextDialogState
+import com.anasdev.pdfreader.presentation.pdf.TextSelectionFloatingPopup
+import com.anasdev.pdfreader.presentation.pdf.TextSelectionState
 import com.anasdev.pdfreader.presentation.pdf.TooltipIconButton
 import com.anasdev.pdfreader.presentation.state.ExportUiEvent
 import com.anasdev.pdfreader.presentation.state.PdfViewModel
@@ -171,10 +176,10 @@ fun PdfScreen(
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
 
     var isStylePopoverVisible by remember { mutableStateOf(false) }
-    var isToolbarMinimized by remember { mutableStateOf(false) }
+    var isToolbarMinimized by rememberSaveable { mutableStateOf(false) }
     var textDialogState by remember { mutableStateOf<TextDialogState?>(null) }
-    var showSavedSignatureDialog by remember { mutableStateOf(false) }
-    var showCreateSignatureDialog by remember { mutableStateOf(false) }
+    var showSavedSignatureDialog by rememberSaveable { mutableStateOf(false) }
+    var showCreateSignatureDialog by rememberSaveable { mutableStateOf(false) }
 
     // Auto-close popover when switching away from Pen/Highlighter/Text
     LaunchedEffect(activeTool) {
@@ -240,15 +245,22 @@ fun PdfScreen(
     var showMenu by remember { mutableStateOf(false) }
     var showNightModeSubMenu by remember { mutableStateOf(false) }
     var pdfViewRef by remember { mutableStateOf<PDFView?>(null) }
-    var isTopBarVisible by remember { mutableStateOf(true) }
+    var isTopBarVisible by rememberSaveable { mutableStateOf(true) }
     var topBarHeightPx by remember { mutableIntStateOf(0) }
     val density = LocalDensity.current
     val topBarHeightDp = remember(topBarHeightPx) { with(density) { topBarHeightPx.toDp() } }
-    var showDiscardConfirmDialog by remember { mutableStateOf(false) }
+    var showDiscardConfirmDialog by rememberSaveable { mutableStateOf(false) }
+    var textSelectionState by remember { mutableStateOf<TextSelectionState?>(null) }
 
     // Quick Pill state for tapping TextHighlight in Reading Mode
     val selectedHighlightState by viewModel.selectedHighlightState.collectAsStateWithLifecycle()
     val coroutineScope = rememberCoroutineScope()
+
+    // Dismiss screen-coordinate-dependent floating popups across orientation change
+    LaunchedEffect(isLandscape) {
+        textSelectionState = null
+        viewModel.clearSelectedHighlight()
+    }
 
     val annotationRenderer = remember { AnnotationRenderer() }
 
@@ -282,9 +294,8 @@ fun PdfScreen(
         viewModel.clearSelectedHighlight()
     }
 
-    // Reset transient document UI state on document URI change
+    // Clear selection when document changes without destroying edit session on rotation
     LaunchedEffect(pdfUri) {
-        viewModel.clearDocumentSessionUiState()
         pdfViewRef?.clearTextSelection()
     }
 
@@ -336,7 +347,6 @@ fun PdfScreen(
                 pdfView.recycle() // Cleanly free C++ native PDFium document memory & bitmap caches
             }
             pdfViewRef = null
-            viewModel.clearDocumentSessionUiState()
         }
     }
 
@@ -379,6 +389,16 @@ fun PdfScreen(
                                 this.setBackgroundColor(backgroundColor)
                             }
                             pdfViewRef = pdfView
+
+                            pdfView.setSelectionMenuListener(object : PdfTextSelectionManager.SelectionMenuListener {
+                                override fun onShowSelectionMenu(selectedText: String, screenBounds: RectF) {
+                                    textSelectionState = TextSelectionState(selectedText, screenBounds)
+                                }
+
+                                override fun onHideSelectionMenu() {
+                                    textSelectionState = null
+                                }
+                            })
 
                             pdfView.textSelectionManager?.setSelectionHighlightListener { colorArgb ->
                                 val rectsByPage = pdfView.normalizedSelectionRectsByPage
@@ -434,6 +454,12 @@ fun PdfScreen(
                                     .onPageScroll { _, positionOffset ->
                                         if (selectedHighlightState != null) {
                                             viewModel.clearSelectedHighlight()
+                                        }
+                                        if (pdfView.textSelectionManager != null && pdfView.textSelectionManager.isSelectionActive) {
+                                            val bounds = pdfView.textSelectionManager.selectionScreenBounds
+                                            if (!bounds.isEmpty) {
+                                                textSelectionState = TextSelectionState(pdfView.textSelectionManager.selectedText, bounds)
+                                            }
                                         }
                                         if (!stateHolder.isEditMode && !searchUiState.isSearchOpen) {
                                             if (positionOffset > 0.02f && isTopBarVisible) {
@@ -543,6 +569,7 @@ fun PdfScreen(
                                     label = stringResource(R.string.back),
                                     onClick = {
                                         pdfViewRef?.let { viewModel.saveCurrentPage(it.currentPage) }
+                                        viewModel.clearDocumentSessionUiState()
                                         onClickBack()
                                     }
                                 ) {
@@ -947,17 +974,66 @@ fun PdfScreen(
                 }
             }
 
+            // --- TEXT SELECTION FLOATING POPUP ---
+            if (!isEditMode && textSelectionState != null) {
+                textSelectionState?.let { sel ->
+                    val context = androidx.compose.ui.platform.LocalContext.current
+                    TextSelectionFloatingPopup(
+                        selectedText = sel.selectedText,
+                        selectionBounds = sel.bounds,
+                        screenWidth = resources.displayMetrics.widthPixels.toFloat(),
+                        density = density.density,
+                        topBarHeightPx = topBarHeightPx.toFloat(),
+                        onApplyHighlight = { colorArgb ->
+                            val rectsByPage = pdfViewRef?.normalizedSelectionRectsByPage ?: emptyMap()
+                            if (rectsByPage.isNotEmpty()) {
+                                val mapped = rectsByPage.mapValues { (_, rectList) ->
+                                    rectList.map { r ->
+                                        NormalizedRect(r.left, r.top, r.right, r.bottom)
+                                    }
+                                }
+                                viewModel.addTextHighlight(mapped, colorArgb)
+                            }
+                            pdfViewRef?.clearTextSelection()
+                            textSelectionState = null
+                        },
+                        onCopy = {
+                            pdfViewRef?.textSelectionManager?.copyToClipboard()
+                            pdfViewRef?.clearTextSelection()
+                            textSelectionState = null
+                        },
+                        onTranslate = {
+                            com.anasdev.pdfreader.presentation.utils.TranslateHelper.launchTranslation(context, sel.selectedText)
+                            pdfViewRef?.clearTextSelection()
+                            textSelectionState = null
+                        },
+                        onShare = {
+                            pdfViewRef?.textSelectionManager?.shareSelectedText()
+                            pdfViewRef?.clearTextSelection()
+                            textSelectionState = null
+                        },
+                        onSelectAll = {
+                            pdfViewRef?.textSelectionManager?.selectAllOnPage()
+                        },
+                        onDeleteOrClear = {
+                            pdfViewRef?.clearTextSelection()
+                            textSelectionState = null
+                        }
+                    )
+                }
+            }
+
             // --- READING MODE TAP-TO-RECOLOR / DELETE FLOATING PILL ---
             if (!isEditMode) {
                 selectedHighlightState?.let { (highlight, coords) ->
-                    val density = resources.displayMetrics.density
-                    val pillWidthPx = 196f * density
-                    val pillHeightPx = 54f * density
+                    val densityVal = resources.displayMetrics.density
+                    val pillWidthPx = 196f * densityVal
+                    val pillHeightPx = 54f * densityVal
 
                     // Center pill above touch coordinate, clamped within screen margins
                     val screenW = resources.displayMetrics.widthPixels.toFloat()
-                    val targetX = (coords.first - (pillWidthPx / 2f)).coerceIn(16f * density, screenW - pillWidthPx - 16f * density)
-                    val targetY = (coords.second - pillHeightPx - 24f * density).coerceAtLeast(80f * density)
+                    val targetX = (coords.first - (pillWidthPx / 2f)).coerceIn(16f * densityVal, screenW - pillWidthPx - 16f * densityVal)
+                    val targetY = (coords.second - pillHeightPx - 24f * densityVal).coerceAtLeast(80f * densityVal)
 
                     Surface(
                         modifier = Modifier
@@ -968,7 +1044,7 @@ fun PdfScreen(
                         shadowElevation = 8.dp
                     ) {
                         Row(
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                            modifier = Modifier.padding(start = 12.dp, end = 8.dp, top = 6.dp, bottom = 6.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
@@ -1004,24 +1080,26 @@ fun PdfScreen(
                                 }
                             }
 
-                            HorizontalDivider(
+                            // Subtle 1.dp divider
+                            Box(
                                 modifier = Modifier
                                     .size(width = 1.dp, height = 20.dp)
-                                    .padding(horizontal = 2.dp)
+                                    .background(Color.White.copy(alpha = 0.14f))
                             )
 
-                            TooltipIconButton(
-                                label = stringResource(R.string.delete_annotation),
+                            IconButton(
                                 onClick = {
                                     viewModel.deleteTextHighlight(highlight.id)
                                     viewModel.clearSelectedHighlight()
-                                }
+                                },
+                                modifier = Modifier
+                                    .size(34.dp)
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.Delete,
+                                    imageVector = Icons.Outlined.Delete,
                                     contentDescription = stringResource(R.string.delete_annotation),
                                     tint = MaterialTheme.colorScheme.error,
-                                    modifier = Modifier.size(18.dp)
+                                    modifier = Modifier.size(22.dp)
                                 )
                             }
                         }

@@ -34,6 +34,10 @@ import android.widget.LinearLayout;
 import android.widget.PopupWindow;
 import android.widget.Toast;
 
+import androidx.core.content.ContextCompat;
+
+import com.anasdev.pdfreader.R;
+import com.anasdev.pdfreader.presentation.utils.TranslateHelper;
 import com.github.barteksc.pdfviewer.PDFView;
 import com.github.barteksc.pdfviewer.util.SizeF;
 
@@ -85,10 +89,37 @@ public class PdfTextSelectionManager {
         void onApplyHighlight(int colorArgb);
     }
 
+    public interface SelectionMenuListener {
+        void onShowSelectionMenu(String selectedText, RectF screenBounds);
+        void onHideSelectionMenu();
+    }
+
     private SelectionHighlightListener highlightListener;
+    private SelectionMenuListener selectionMenuListener;
 
     public void setSelectionHighlightListener(SelectionHighlightListener listener) {
         this.highlightListener = listener;
+    }
+
+    public void setSelectionMenuListener(SelectionMenuListener listener) {
+        this.selectionMenuListener = listener;
+    }
+
+    public RectF getSelectionScreenBounds() {
+        if (highlightScreenRects.isEmpty()) return new RectF();
+        float minL = Float.MAX_VALUE, minT = Float.MAX_VALUE;
+        float maxR = -Float.MAX_VALUE, maxB = -Float.MAX_VALUE;
+        for (RectF r : highlightScreenRects) {
+            minL = Math.min(minL, r.left);
+            minT = Math.min(minT, r.top);
+            maxR = Math.max(maxR, r.right);
+            maxB = Math.max(maxB, r.bottom);
+        }
+        return new RectF(minL, minT, maxR, maxB);
+    }
+
+    public String getSelectedText() {
+        return selectedText;
     }
 
     public int getSelectedPageIndex() {
@@ -317,11 +348,15 @@ public class PdfTextSelectionManager {
         if (!highlightScreenRects.isEmpty()) {
             this.isSelectionActive = true;
             pdfView.invalidate();
-            showActionMode();
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && actionMode != null && !pdfView.isAnimating() && !isDraggingHandle()) {
-                try {
-                    actionMode.invalidateContentRect();
-                } catch (Exception ignored) {}
+            if (selectionMenuListener != null) {
+                selectionMenuListener.onShowSelectionMenu(selectedText, getSelectionScreenBounds());
+            } else {
+                showActionMode();
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && actionMode != null && !pdfView.isAnimating() && !isDraggingHandle()) {
+                    try {
+                        actionMode.invalidateContentRect();
+                    } catch (Exception ignored) {}
+                }
             }
         } else {
             clearSelection();
@@ -559,6 +594,9 @@ public class PdfTextSelectionManager {
     public void onAnimationEnd() {
         if (isSelectionActive && !cachedNormalizedRects.isEmpty()) {
             updateScreenRectsFromNormalized();
+            if (selectionMenuListener != null) {
+                selectionMenuListener.onShowSelectionMenu(selectedText, getSelectionScreenBounds());
+            }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && actionMode != null) {
                 try {
                     actionMode.invalidateContentRect();
@@ -743,6 +781,9 @@ public class PdfTextSelectionManager {
                 if (isDraggingStartHandle || isDraggingEndHandle) {
                     isDraggingStartHandle = false;
                     isDraggingEndHandle = false;
+                    if (selectionMenuListener != null && isSelectionActive) {
+                        selectionMenuListener.onShowSelectionMenu(selectedText, getSelectionScreenBounds());
+                    }
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && actionMode != null && !pdfView.isAnimating()) {
                         try {
                             actionMode.invalidateContentRect();
@@ -759,6 +800,9 @@ public class PdfTextSelectionManager {
     public void clearSelection() {
         currentRequestId.incrementAndGet();
         dismissColorDropdown();
+        if (selectionMenuListener != null) {
+            selectionMenuListener.onHideSelectionMenu();
+        }
         isSelectionActive = false;
         isDraggingStartHandle = false;
         isDraggingEndHandle = false;
@@ -798,6 +842,7 @@ public class PdfTextSelectionManager {
     private static final int MENU_COPY = 1;
     private static final int MENU_SHARE = 2;
     private static final int MENU_SELECT_ALL = 3;
+    private static final int MENU_TRANSLATE = 4;
     private static final int MENU_HIGHLIGHT_DEFAULT = 100;
     private static final int MENU_EXPAND_COLORS = 101;
 
@@ -1034,11 +1079,17 @@ public class PdfTextSelectionManager {
         yellowItem.setIcon(createSwatchDrawable(COLOR_YELLOW));
         yellowItem.setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS);
 
-        MenuItem copyItem = menu.add(Menu.NONE, MENU_COPY, 10, "Copy");
+        MenuItem copyItem = menu.add(Menu.NONE, MENU_COPY, 10, context.getString(R.string.copy));
         copyItem.setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS);
-        MenuItem selectAllItem = menu.add(Menu.NONE, MENU_SELECT_ALL, 11, "Select All");
+
+        MenuItem translateItem = menu.add(Menu.NONE, MENU_TRANSLATE, 11, context.getString(R.string.translate));
+        translateItem.setIcon(ContextCompat.getDrawable(context, R.drawable.ic_translate));
+        translateItem.setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS);
+
+        MenuItem selectAllItem = menu.add(Menu.NONE, MENU_SELECT_ALL, 12, context.getString(R.string.select_all));
         selectAllItem.setShowAsAction(MenuItem.SHOW_AS_ACTION_IF_ROOM);
-        MenuItem shareItem = menu.add(Menu.NONE, MENU_SHARE, 12, "Share");
+
+        MenuItem shareItem = menu.add(Menu.NONE, MENU_SHARE, 13, context.getString(R.string.share));
         shareItem.setShowAsAction(MenuItem.SHOW_AS_ACTION_IF_ROOM);
     }
 
@@ -1066,6 +1117,11 @@ public class PdfTextSelectionManager {
             case MENU_COPY:
                 dismissColorDropdown();
                 copyToClipboard();
+                mode.finish();
+                return true;
+            case MENU_TRANSLATE:
+                dismissColorDropdown();
+                TranslateHelper.launchTranslation(context, selectedText);
                 mode.finish();
                 return true;
             case MENU_SHARE:
@@ -1160,7 +1216,7 @@ public class PdfTextSelectionManager {
         }
     }
 
-    private void copyToClipboard() {
+    public void copyToClipboard() {
         if (selectedText != null && !selectedText.isEmpty()) {
             ClipboardManager clipboard = (ClipboardManager) context.getSystemService(Context.CLIPBOARD_SERVICE);
             ClipData clip = ClipData.newPlainText("PDF Text", selectedText);
@@ -1171,7 +1227,7 @@ public class PdfTextSelectionManager {
         }
     }
 
-    private void shareSelectedText() {
+    public void shareSelectedText() {
         if (selectedText != null && !selectedText.isEmpty()) {
             Intent intent = new Intent(Intent.ACTION_SEND);
             intent.setType("text/plain");
@@ -1180,7 +1236,7 @@ public class PdfTextSelectionManager {
         }
     }
 
-    private void selectAllOnPage() {
+    public void selectAllOnPage() {
         if (selectedPageIndex < 0) return;
         final int page = selectedPageIndex;
         final long reqId = currentRequestId.incrementAndGet();

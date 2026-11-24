@@ -2,6 +2,7 @@ package com.anasdev.pdfreader.presentation
 
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -24,6 +25,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 @AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
 
+    companion object {
+        private const val KEY_SAVED_EXTERNAL_URI = "saved_external_pdf_uri"
+    }
+
     // 1. Make the external intent reactive so Compose listens for updates
     private val _externalPdfUri = MutableStateFlow<Uri?>(null)
 
@@ -31,7 +36,20 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-        // Handle the intent if the app is launched from a cold start
+        // Restore state across process death
+        if (savedInstanceState != null) {
+            val restoredUri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                savedInstanceState.getParcelable(KEY_SAVED_EXTERNAL_URI, Uri::class.java)
+            } else {
+                @Suppress("DEPRECATION")
+                savedInstanceState.getParcelable(KEY_SAVED_EXTERNAL_URI)
+            }
+            if (restoredUri != null) {
+                _externalPdfUri.value = restoredUri
+            }
+        }
+
+        // Handle intent if launched with an external PDF
         handleIntent(intent)
 
         setContent {
@@ -69,18 +87,35 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        _externalPdfUri.value?.let { uri ->
+            outState.putParcelable(KEY_SAVED_EXTERNAL_URI, uri)
+        }
+    }
+
     // 4. Override onNewIntent to catch files opened while the app is already in the background
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        // Update the Activity's intent so it has the latest data
         setIntent(intent)
         handleIntent(intent)
     }
 
-    // 5. Extract the parsing logic to keep the lifecycle methods clean
+    // 5. Extract parsing logic with robust PDF mime-type and extension checking
     private fun handleIntent(intent: Intent?) {
-        if (intent?.action == Intent.ACTION_VIEW && intent.type == "application/pdf") {
-            _externalPdfUri.value = intent.data
+        if (intent?.action == Intent.ACTION_VIEW) {
+            val data = intent.data ?: return
+            val mimeType = intent.type ?: try {
+                contentResolver.getType(data)
+            } catch (_: Exception) {
+                null
+            }
+            val isPdfMime = mimeType?.equals("application/pdf", ignoreCase = true) == true
+            val isPdfPath = data.path?.endsWith(".pdf", ignoreCase = true) == true
+
+            if (isPdfMime || isPdfPath || intent.type == "application/pdf") {
+                _externalPdfUri.value = data
+            }
         }
     }
 }

@@ -31,7 +31,9 @@ fun AppNavigation(
     val activity = LocalActivity.current
     LaunchedEffect(externalUri) {
         externalUri?.let { uri ->
-            sharedViewModel.loadPdf(uri)
+            if (sharedViewModel.pdfUri.value != uri) {
+                sharedViewModel.loadPdf(uri)
+            }
         }
     }
 

@@ -1,4 +1,4 @@
-# PDF Flow [![Android CI](https://github.com/EngAnasMuhammad/PDF-reader/actions/workflows/build.yml/badge.svg)](https://github.com/EngAnasMuhammad/PDF-reader/actions/workflows/build.yml) [![Version](https://img.shields.io/badge/version-2.1.0-blue.svg)](https://github.com/EngAnasMuhammad/PDF-reader/releases)
+# PDF Flow [![Android CI](https://github.com/EngAnasMuhammad/PDF-Flow/actions/workflows/build.yml/badge.svg)](https://github.com/EngAnasMuhammad/PDF-Flow/actions/workflows/build.yml) [![Version](https://img.shields.io/badge/version-2.2.0-blue.svg)](https://github.com/EngAnasMuhammad/PDF-Flow/releases)
 
 A lightweight, **100% offline-first** Android PDF reader, annotator, and document utility suite built with **Jetpack Compose**, **Clean Architecture**, and a native **C++ PDFium NDK** engine.
 
@@ -12,12 +12,14 @@ Designed for speed, low RAM usage, and strict privacy—everything runs locally 
 - **Native C++ PDFium Rendering:** Fast, smooth rendering and zooming via a modified C++ PDFium NDK engine.
 - **Offline In-Document Text Search:** Fast, sequential document-order PDFium text search with a Google Drive-style morphed search bar, viewport auto-centering, active/inactive match highlighting, and **Arabic-aware normalization** (ignoring hamza variants `أ/إ/آ`, `ة/ه`, `ى/ي`, tashkeel, and tatweel).
 - **Refined Reading & Selection UX:** Cleaner TopBar with Edit Mode moved to an animated Floating Action Button, background-threaded PDFium text hit-testing, and RTL-aware Material 3 teardrop selection handles with generous touch hitboxes and smooth drag auto-correction.
+- **Unified In-Place Selection & Translate Menu:** Anchored floating Material 3 pill with 1-tap Copy, multi-color Highlight, and zero-permission 3-tier **Translate** fallback (`ACTION_PROCESS_TEXT` -> translate app intent -> browser URL fallback) with automatic PDF hyphen/break sanitization.
 - **Custom GPU Reading Modes:** Hardware-accelerated `ColorMatrixColorFilter` support for **Sepia**, **Dimmed**, and **Dark** reading modes.
-- **Adaptive Portrait & Landscape UI:** Responsive layouts with edge-to-edge inset handling, 2-pane side-by-side landscape sheets, and scroll-safe toolbars.
+- **Adaptive Portrait & Landscape UI & Lifecycle Resilience:** Responsive layouts with edge-to-edge inset handling, 2-pane landscape sheets, and full state preservation across orientation changes, multi-window mode, and system configuration updates.
 - **Viewing Modes & Preferences:** Continuous vertical and horizontal scroll options, and a keep-screen-awake toggle.
 - **Bilingual & Theme Support:** Full bidirectional **English** & **Arabic (RTL)** localization and per-app **Theme (System / Light / Dark)** switching powered by `AppCompatDelegate`.
 
 ### Annotations & Digital Signatures
+- **Hold-to-Snap Straight Lines (Rule / Rulers):** Draw naturally with the Pen or Highlighter, pause at the end of the stroke for 350ms, and it automatically snaps into a crisp, perfectly straight line with full Undo/Redo support.
 - **1-Tap Text Highlighting:** Select text directly in Reading Mode to apply multi-color pastel highlights in a single tap, with tap-to-recolor/delete and eraser support.
 - **Freehand Pen & Highlighter:** Smooth Bézier ink strokes with customizable colors, stroke thickness, and a precision eraser.
 - **Draggable & Resizable Text Boxes:** Place editable notes anywhere on a page with full **Arabic/RTL**, **LTR**, and **emoji** rendering.
@@ -52,6 +54,14 @@ Designed for speed, low RAM usage, and strict privacy—everything runs locally 
     - *Challenge:* Modifying PDFs in place requires broad file permissions and destroys undo history, while exporting a new copy on every edit clutters the user's storage.
     - *Solution:* Persisted editable annotations locally in Room (with explicit schema migrations and zero broad storage permissions via SAF and Android's Photo Picker), offering instant **Undo/Redo** and on-demand **Save Copy** export to `Downloads/PDFReader/`.
 
+- **Hold-to-Snap Stroke Geometry & Timer Debouncing:**
+    - *Challenge:* Snapping freehand strokes into straight lines must not interfere with natural handwriting or incur touch lag, while handling touch jitter and multi-segment Bézier curves.
+    - *Solution:* Implemented a 350ms touch-hold detection algorithm in `StrokeSnapHelper` with distance threshold filtering (<15dp movement window), transforming dynamic stroke points into a direct line segment while maintaining full Undo/Redo fidelity and vector export compatibility.
+
+- **Zero-Permission Contextual Translation:**
+    - *Challenge:* Offering text translation inside an offline-first app without introducing `INTERNET` permissions or heavy on-device ML libraries.
+    - *Solution:* Utilized Android's IPC Intent subsystem (`ACTION_PROCESS_TEXT` and targeted URI intents) with an offline text sanitization pipeline that strips PDF hyphenation artifacts and joins fragmented PDF lines prior to delegation.
+
 - **Lean Binary Footprint & Native PDF Performance:**
     - *Challenge:* Bundling native C++ PDFium `.so` binaries alongside `PdfBox-Android` and Room dependencies often balloons APK size past 40–50 MB.
     - *Solution:* Implemented `arm64-v8a` target ABI optimization, strict R8 code shrinking, and resource optimization—keeping the full offline C++ rendering and vector manipulation suite compressed to around **~13 MB**.
@@ -71,7 +81,7 @@ Designed for speed, low RAM usage, and strict privacy—everything runs locally 
 
 ## Installation
 1. Go to the [Releases](../../releases) tab.
-2. Download the latest `v2.1.0` release (`app-release.apk`).
+2. Download the latest `v2.2.0` release (`PDF-Flow-v2.2.0.apk`).
 3. Install on any Android 8.0+ device (API 26+).
 
 ---

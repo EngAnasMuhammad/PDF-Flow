@@ -28,6 +28,7 @@ import com.tom_roush.pdfbox.pdmodel.common.PDRectangle
 import com.tom_roush.pdfbox.pdmodel.encryption.InvalidPasswordException
 import com.tom_roush.pdfbox.pdmodel.graphics.image.JPEGFactory
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.BufferedInputStream
@@ -102,6 +103,7 @@ class PdfToolsRepositoryImpl @Inject constructor(
 
             saveDocumentToDownloads(document, sanitizedFileName)
         } catch (t: Throwable) {
+            if (t is CancellationException) throw t
             Result.failure(t)
         } finally {
             try {
@@ -160,6 +162,7 @@ class PdfToolsRepositoryImpl @Inject constructor(
 
             saveFileToDownloads(tempOutputFile, sanitizedFileName)
         } catch (t: Throwable) {
+            if (t is CancellationException) throw t
             Result.failure(t)
         } finally {
             try {
@@ -218,6 +221,7 @@ class PdfToolsRepositoryImpl @Inject constructor(
                     decoded
                 }
             } catch (t: Throwable) {
+                if (t is CancellationException) throw t
                 Log.w("PdfTools", "ImageDecoder failed for $uri, falling back to BitmapFactory", t)
             }
         }
@@ -298,6 +302,7 @@ class PdfToolsRepositoryImpl @Inject constructor(
                 BitmapFactory.decodeStream(stream, null, decodeOptions)
             }
         } catch (e: Exception) {
+            if (e is CancellationException) throw e
             Log.e("PdfTools", "Failed to decode bitmap for $uri", e)
             null
         } ?: return null

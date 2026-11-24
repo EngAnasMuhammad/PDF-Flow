@@ -27,6 +27,7 @@ import com.anasdev.pdfreader.domain.repository.PdfRepository
 import com.anasdev.pdfreader.domain.repository.PdfToolsRepository
 import com.anasdev.pdfreader.domain.repository.SettingsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
@@ -1056,7 +1057,7 @@ class PdfViewModel @Inject constructor(
         val title = _pdfTitle.value
         val annotations = _draftAnnotations.value ?: annotationsByPage.value
 
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             if (!pdfRepository.isUriAccessible(sourceUri)) {
                 onPdfLoadFailed(sourceUri)
                 return@launch
@@ -1067,6 +1068,7 @@ class PdfViewModel @Inject constructor(
             result.onSuccess { exported ->
                 _exportEvent.emit(ExportUiEvent.Success(exported.uri, exported.displayName))
             }.onFailure { e ->
+                if (e is CancellationException) throw e
                 if (e is java.io.FileNotFoundException || !pdfRepository.isUriAccessible(sourceUri)) {
                     onPdfLoadFailed(sourceUri)
                 }
@@ -1080,7 +1082,7 @@ class PdfViewModel @Inject constructor(
         val sourceUri = _pdfUri.value ?: return
         val annotations = _draftAnnotations.value ?: annotationsByPage.value
 
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             if (!pdfRepository.isUriAccessible(sourceUri)) {
                 onPdfLoadFailed(sourceUri)
                 return@launch
@@ -1091,6 +1093,7 @@ class PdfViewModel @Inject constructor(
             result.onSuccess { uri ->
                 _exportEvent.emit(ExportUiEvent.Success(uri, "PDF"))
             }.onFailure { e ->
+                if (e is CancellationException) throw e
                 if (e is java.io.FileNotFoundException || !pdfRepository.isUriAccessible(sourceUri)) {
                     onPdfLoadFailed(sourceUri)
                 }
@@ -1104,14 +1107,14 @@ class PdfViewModel @Inject constructor(
     }
 
     fun deleteRecentFile(recentFile: RecentFile) {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             pdfRepository.deleteRecentFile(recentFile)
         }
     }
 
     fun convertImagesToPdf(uris: List<Uri>, fileName: String) {
         if (uris.isEmpty()) return
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             _isProcessingTool.value = true
             _toolProgress.value = Pair(0, uris.size)
             try {
@@ -1128,6 +1131,7 @@ class PdfViewModel @Inject constructor(
                     _toolResultEvent.emit(ToolResultEvent.Failure(error.localizedMessage ?: "Failed to convert images to PDF"))
                 }
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 _toolResultEvent.emit(ToolResultEvent.Failure(e.localizedMessage ?: "Failed to convert images to PDF"))
             } finally {
                 _isProcessingTool.value = false
@@ -1142,7 +1146,7 @@ class PdfViewModel @Inject constructor(
 
     fun mergePdfs(uris: List<Uri>, fileName: String) {
         if (uris.size < 2) return
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             _isProcessingTool.value = true
             _toolProgress.value = Pair(0, uris.size)
             try {
@@ -1159,6 +1163,7 @@ class PdfViewModel @Inject constructor(
                     _toolResultEvent.emit(ToolResultEvent.Failure(error.localizedMessage ?: "Failed to merge PDFs"))
                 }
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 _toolResultEvent.emit(ToolResultEvent.Failure(e.localizedMessage ?: "Failed to merge PDFs"))
             } finally {
                 _isProcessingTool.value = false
@@ -1269,7 +1274,8 @@ class PdfViewModel @Inject constructor(
 
                 val pageMatches = try {
                     searchPageProvider(pageIndex)
-                } catch (_: Exception) {
+                } catch (e: Exception) {
+                    if (e is CancellationException) throw e
                     emptyList()
                 }
 
@@ -1370,6 +1376,10 @@ class PdfViewModel @Inject constructor(
         const val DEFAULT_TEXT_WIDTH = 0.40f
         const val MIN_TEXT_WIDTH = 0.12f
         const val MAX_TEXT_WIDTH = 0.95f
+    }
+
+    override fun onCleared() {
+        clearDocumentSessionUiState()
     }
 }
 

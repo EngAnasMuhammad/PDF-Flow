@@ -2,6 +2,20 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <queries>
+        <!-- Package visibility for text processing apps (Google Translate, DeepL, dictionaries) -->
+        <intent>
+            <action android:name="android.intent.action.PROCESS_TEXT" />
+            <data android:mimeType="text/plain" />
+        </intent>
+        <!-- Package visibility for web browser fallback -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" />
+        </intent>
+        <package android:name="com.google.android.apps.translate" />
+    </queries>
+
     <application
         android:name="com.anasdev.pdfreader.di.PDFApplication"
         android:allowBackup="true"

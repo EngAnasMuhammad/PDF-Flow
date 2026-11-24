@@ -44,6 +44,7 @@
     <string name="done">تم</string>
     <string name="pen">قلم</string>
     <string name="highlighter">تظليل</string>
+    <string name="highlight">تمييز</string>
     <string name="eraser">ممحاة</string>
     <string name="pan_mode">تحريك</string>
     <string name="undo">تراجع</string>
@@ -162,4 +163,14 @@
     <string name="settings_developer_name">أنس محمد</string>
     <string name="settings_github_repo">مستودع GitHub</string>
     <string name="settings_app_tagline">قارئ ومحرر PDF سريع • يعمل بدون إنترنت</string>
+
+    <!-- Text Selection Actions -->
+    <string name="copy">نسخ</string>
+    <string name="translate">ترجمة</string>
+    <string name="share">مشاركة</string>
+    <string name="select_all">تحديد الكل</string>
+    <string name="no_translation_app_found">لم يتم العثور على متصفح أو تطبيق ترجمة</string>
+
+    <!-- Pen & Highlighter Smart Rule Hint -->
+    <string name="straighten_stroke_tip">تلميح: ثبت إصبعك عند نهاية الخط ليصبح مستقيماً</string>
 </resources>

@@ -471,5 +471,6 @@ data class ActiveStroke(
     val points: MutableList<NormalizedPoint>,
     val colorArgb: Int,
     val strokeWidthRatio: Float,
-    val isHighlighter: Boolean
+    val isHighlighter: Boolean,
+    var isSnappedLine: Boolean = false
 )

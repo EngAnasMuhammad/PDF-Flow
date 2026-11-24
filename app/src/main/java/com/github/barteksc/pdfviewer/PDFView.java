@@ -1543,6 +1543,12 @@ public class PDFView extends RelativeLayout {
         return textSelectionManager;
     }
 
+    public void setSelectionMenuListener(PdfTextSelectionManager.SelectionMenuListener listener) {
+        if (textSelectionManager != null) {
+            textSelectionManager.setSelectionMenuListener(listener);
+        }
+    }
+
     /**
      * Returns normalized text selection rectangles grouped by page index (0f..1f range relative to page width/height).
      */

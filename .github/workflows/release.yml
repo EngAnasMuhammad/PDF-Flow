@@ -57,13 +57,18 @@ jobs:
       - name: Prepare Assets for Release
         run: |
           mkdir -p release_assets
-          cp app/build/outputs/apk/release/app-release.apk release_assets/PDFReader-Release.apk
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            VERSION="${GITHUB_REF_NAME}"
+          else
+            VERSION="v${{ github.event.inputs.version_name }}"
+          fi
+          cp app/build/outputs/apk/release/app-release.apk "release_assets/PDF-Flow-${VERSION}.apk"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            release_assets/PDFReader-Release.apk
+            release_assets/PDF-Flow-*.apk
           generate_release_notes: true
           draft: false
           prerelease: false
