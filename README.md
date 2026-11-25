@@ -1,4 +1,4 @@
-# PDF Flow [![Android CI](https://github.com/EngAnasMuhammad/PDF-Flow/actions/workflows/build.yml/badge.svg)](https://github.com/EngAnasMuhammad/PDF-Flow/actions/workflows/build.yml) [![Version](https://img.shields.io/badge/version-2.2.0-blue.svg)](https://github.com/EngAnasMuhammad/PDF-Flow/releases)
+# PDF Flow [![Android CI](https://github.com/EngAnasMuhammad/PDF-Flow/actions/workflows/build.yml/badge.svg)](https://github.com/EngAnasMuhammad/PDF-Flow/actions/workflows/build.yml) [![Version](https://img.shields.io/badge/version-2.2.1-blue.svg)](https://github.com/EngAnasMuhammad/PDF-Flow/releases)
 
 A lightweight, **100% offline-first** Android PDF reader, annotator, and document utility suite built with **Jetpack Compose**, **Clean Architecture**, and a native **C++ PDFium NDK** engine.
 
@@ -19,7 +19,7 @@ Designed for speed, low RAM usage, and strict privacy—everything runs locally 
 - **Bilingual & Theme Support:** Full bidirectional **English** & **Arabic (RTL)** localization and per-app **Theme (System / Light / Dark)** switching powered by `AppCompatDelegate`.
 
 ### Annotations & Digital Signatures
-- **Hold-to-Snap Straight Lines (Rule / Rulers):** Draw naturally with the Pen or Highlighter, pause at the end of the stroke for 350ms, and it automatically snaps into a crisp, perfectly straight line with full Undo/Redo support.
+- **Instant Straight Lines & Hold-to-Snap:** Dedicated **Freehand / Straight Line** toggle with zero-delay live rubber-band preview and $\pm 2^\circ$ magnetic axis snapping. Smart per-tool defaults (Highlighter defaults to **Straight**; Pen defaults to **Freehand**) with remembered settings. In Freehand mode, pausing at stroke end for 350ms snaps smoothly to a straight line.
 - **1-Tap Text Highlighting:** Select text directly in Reading Mode to apply multi-color pastel highlights in a single tap, with tap-to-recolor/delete and eraser support.
 - **Freehand Pen & Highlighter:** Smooth Bézier ink strokes with customizable colors, stroke thickness, and a precision eraser.
 - **Draggable & Resizable Text Boxes:** Place editable notes anywhere on a page with full **Arabic/RTL**, **LTR**, and **emoji** rendering.
@@ -79,9 +79,25 @@ Designed for speed, low RAM usage, and strict privacy—everything runs locally 
 
 ---
 
+## Release History & Changelog
+
+### `v2.2.1` (Patch Update)
+- **Instant Straight-Line vs. Freehand Mode Toggle:** Added a dedicated segmented toggle inside the Pen & Highlighter style popover for zero-delay, 2-point straight line drawing with live rubber-band preview and $\pm 2^\circ$ magnetic axis snapping (horizontal & vertical).
+- **Per-Tool Mode Defaults & Persistence:** Highlighter defaults to **Straight** mode for rapid line highlighting; Pen defaults to **Freehand**. Each tool independently remembers its mode when switching.
+- **Micro-Tap Filtering & Multi-Touch Guards:** Straight mode ignores accidental taps ($< 4\text{dp}$) and prevents multi-touch gestures from committing invalid endpoints.
+- **Contextual Tip:** Automatically hides the hold-to-straighten hint when Straight mode is selected, keeping the UI clean. Full English & Arabic localization.
+
+### `v2.2.0`
+- **Hold-to-Snap Straight Lines:** Intelligent 350ms pause-to-straighten gesture in Freehand mode (`StrokeSnapHelper`) with magnetic axis snapping and 2-point vector export optimization.
+- **Zero-Permission 3-Tier Translate Action:** Added instant Translation to the text selection popup (`ACTION_PROCESS_TEXT` $\to$ translation app $\to$ browser URL fallback) with automatic PDF line-break and hyphenation cleanup.
+- **Unified Text Selection Popup:** Replaced multi-window popups with a smooth, anchored single-container menu (`MAIN`, `COLORS`, `MORE`) with animated transitions and back navigation.
+- **Full Android Lifecycle & Rotation Audit:** Preserved active Annotate mode and in-progress strokes across device rotations and multi-window resizing; moved background tasks (export, merge, image conversion) to `Dispatchers.IO` with proper `CancellationException` propagation; and restored external PDF URIs across process recreation.
+
+---
+
 ## Installation
 1. Go to the [Releases](../../releases) tab.
-2. Download the latest `v2.2.0` release (`PDF-Flow-v2.2.0.apk`).
+2. Download the latest `v2.2.1` release (`PDF-Flow-v2.2.1.apk`).
 3. Install on any Android 8.0+ device (API 26+).
 
 ---

@@ -152,6 +152,7 @@ fun PdfScreen(
     val activeTool by viewModel.activeTool.collectAsStateWithLifecycle()
     val selectedColorArgb by viewModel.selectedColorArgb.collectAsStateWithLifecycle()
     val strokeWidthRatio by viewModel.strokeWidthRatio.collectAsStateWithLifecycle()
+    val strokeDrawMode by viewModel.strokeDrawMode.collectAsStateWithLifecycle()
     val textFontSizeRatio by viewModel.textFontSizeRatio.collectAsStateWithLifecycle()
     val selectedAnnotationId by viewModel.selectedAnnotationId.collectAsStateWithLifecycle()
     val annotationsByPage by viewModel.annotationsByPage.collectAsStateWithLifecycle()
@@ -273,6 +274,7 @@ fun PdfScreen(
     stateHolder.activeTool = activeTool
     stateHolder.selectedColorArgb = selectedColorArgb
     stateHolder.strokeWidthRatio = strokeWidthRatio
+    stateHolder.strokeDrawMode = strokeDrawMode
     stateHolder.selectedAnnotationId = selectedAnnotationId
     stateHolder.textFontSizeRatio = textFontSizeRatio
     stateHolder.onCanvasTouch = {
@@ -807,6 +809,7 @@ fun PdfScreen(
                     selectedColorArgb = selectedColorArgb,
                     strokeWidthRatio = strokeWidthRatio,
                     textFontSizeRatio = textFontSizeRatio,
+                    strokeDrawMode = strokeDrawMode,
                     selectedTextBox = selectedTextBox,
                     selectedSignature = selectedSignature,
                     isStylePopoverVisible = isStylePopoverVisible,
@@ -848,6 +851,7 @@ fun PdfScreen(
                     onSelectColor = { viewModel.setSelectedColor(it) },
                     onStrokeWidthChange = { viewModel.setStrokeWidthRatio(it) },
                     onFontSizeChange = { viewModel.setTextFontSizeRatio(it) },
+                    onStrokeDrawModeChange = { viewModel.setStrokeDrawMode(it) },
                     onEditText = { stateHolder.onOpenEditText?.invoke(it) },
                     onDeleteText = { viewModel.deleteAnnotationById(it) },
                     onDeleteSignature = {
@@ -881,6 +885,7 @@ fun PdfScreen(
                     selectedColorArgb = selectedColorArgb,
                     strokeWidthRatio = strokeWidthRatio,
                     textFontSizeRatio = textFontSizeRatio,
+                    strokeDrawMode = strokeDrawMode,
                     selectedTextBox = selectedTextBox,
                     selectedSignature = selectedSignature,
                     isStylePopoverVisible = isStylePopoverVisible,
@@ -922,6 +927,7 @@ fun PdfScreen(
                     onSelectColor = { viewModel.setSelectedColor(it) },
                     onStrokeWidthChange = { viewModel.setStrokeWidthRatio(it) },
                     onFontSizeChange = { viewModel.setTextFontSizeRatio(it) },
+                    onStrokeDrawModeChange = { viewModel.setStrokeDrawMode(it) },
                     onEditText = { stateHolder.onOpenEditText?.invoke(it) },
                     onDeleteText = { viewModel.deleteAnnotationById(it) },
                     onDeleteSignature = {

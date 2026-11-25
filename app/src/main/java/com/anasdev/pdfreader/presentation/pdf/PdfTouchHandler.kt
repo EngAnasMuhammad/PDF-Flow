@@ -1,5 +1,6 @@
 package com.anasdev.pdfreader.presentation.pdf
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.view.GestureDetector
 import android.view.HapticFeedbackConstants
@@ -10,6 +11,7 @@ import com.anasdev.pdfreader.domain.model.AnnotationTool
 import com.anasdev.pdfreader.domain.model.NormalizedPoint
 import com.anasdev.pdfreader.domain.model.PdfAnnotation
 import com.anasdev.pdfreader.domain.model.Signature
+import com.anasdev.pdfreader.domain.model.StrokeDrawMode
 import com.anasdev.pdfreader.domain.model.TextBox
 import com.anasdev.pdfreader.domain.model.TextHighlight
 import com.anasdev.pdfreader.presentation.state.PdfViewModel
@@ -44,6 +46,7 @@ class AnnotationStateHolder {
     var activeTool: AnnotationTool = AnnotationTool.NONE
     var selectedColorArgb: Int = PdfViewModel.DEFAULT_PEN_COLOR
     var strokeWidthRatio: Float = PdfViewModel.DEFAULT_PEN_WIDTH
+    var strokeDrawMode: StrokeDrawMode = StrokeDrawMode.FREEHAND
     var activeStroke: ActiveStroke? = null
     var selectedAnnotationId: String? = null
     var textFontSizeRatio: Float = PdfViewModel.DEFAULT_TEXT_FONT_SIZE
@@ -61,7 +64,7 @@ class AnnotationStateHolder {
         return annotationsByPage.values.flatten().firstOrNull { it.id == id } as? Signature
     }
 }
-
+@SuppressLint("ViewConstructor")
 class PdfTouchHandler(
     context: Context,
     private val pdfView: PDFView,
@@ -75,6 +78,8 @@ class PdfTouchHandler(
     private var isMultiTouchGesture = false
     private var forwardedDownToSuper = false
     private var strokeStartTimeMs = 0L
+    private var strokeDownScreenX = 0f
+    private var strokeDownScreenY = 0f
 
     private var eraserDownX = 0f
     private var eraserDownY = 0f
@@ -214,7 +219,8 @@ class PdfTouchHandler(
             val currentStroke = stateHolder.activeStroke
             if (currentStroke != null) {
                 val elapsedMs = ev.eventTime - strokeStartTimeMs
-                if ((elapsedMs >= 250L && currentStroke.points.size >= 4) || currentStroke.isSnappedLine) {
+                val isDeliberateStraight = currentStroke.points.size >= 2 && currentStroke.points[0] != currentStroke.points[1]
+                if ((elapsedMs >= 250L && currentStroke.points.size >= 4) || (currentStroke.isSnappedLine && isDeliberateStraight)) {
                     // Deliberate stroke was drawn before brushing second finger -> commit it
                     viewModel.commitStroke(currentStroke.pageIndex, currentStroke.points.toList())
                 }
@@ -296,23 +302,30 @@ class PdfTouchHandler(
                         isMultiTouchGesture = false
                         forwardedDownToSuper = false
                         strokeStartTimeMs = ev.eventTime
+                        strokeDownScreenX = ev.x
+                        strokeDownScreenY = ev.y
 
                         val pagePoint = pdfView.mapScreenPointToPage(ev.x, ev.y)
                         if (pagePoint != null) {
+                            val isStraight = stateHolder.strokeDrawMode == StrokeDrawMode.STRAIGHT
+                            val startNorm = NormalizedPoint.of(
+                                pagePoint.normalizedX,
+                                pagePoint.normalizedY
+                            )
                             stateHolder.activeStroke = ActiveStroke(
                                 pageIndex = pagePoint.pageIndex,
-                                points = mutableListOf(
-                                    NormalizedPoint.of(
-                                        pagePoint.normalizedX,
-                                        pagePoint.normalizedY
-                                    )
-                                ),
+                                points = if (isStraight) mutableListOf(startNorm, startNorm) else mutableListOf(startNorm),
                                 colorArgb = stateHolder.selectedColorArgb,
                                 strokeWidthRatio = stateHolder.strokeWidthRatio,
-                                isHighlighter = (tool == AnnotationTool.HIGHLIGHTER)
+                                isHighlighter = (tool == AnnotationTool.HIGHLIGHTER),
+                                isSnappedLine = isStraight
                             )
-                            strokeSnapHelper.onStrokeStart(ev.x, ev.y) {
-                                handleSnapTriggered()
+                            if (isStraight) {
+                                strokeSnapHelper.cancel()
+                            } else {
+                                strokeSnapHelper.onStrokeStart(ev.x, ev.y) {
+                                    handleSnapTriggered()
+                                }
                             }
                             pdfView.invalidate()
                             return true
@@ -327,7 +340,8 @@ class PdfTouchHandler(
                     MotionEvent.ACTION_MOVE -> {
                         val currentStroke = stateHolder.activeStroke
                         if (currentStroke != null) {
-                            if (currentStroke.isSnappedLine) {
+                            val isStraight = stateHolder.strokeDrawMode == StrokeDrawMode.STRAIGHT
+                            if (isStraight || currentStroke.isSnappedLine) {
                                 // Live Pivot & Extend: start point stays anchored, update only end point
                                 val pagePoint = pdfView.mapScreenPointToPage(ev.x, ev.y)
                                 if (pagePoint != null && pagePoint.pageIndex == currentStroke.pageIndex) {
@@ -343,7 +357,11 @@ class PdfTouchHandler(
                                         pageW,
                                         pageH
                                     )
-                                    currentStroke.points[1] = snappedEnd
+                                    if (currentStroke.points.size >= 2) {
+                                        currentStroke.points[1] = snappedEnd
+                                    } else {
+                                        currentStroke.points.add(snappedEnd)
+                                    }
                                     pdfView.invalidate()
                                 }
                                 return true
@@ -378,6 +396,38 @@ class PdfTouchHandler(
                         strokeSnapHelper.cancelHoldTimer()
                         val currentStroke = stateHolder.activeStroke
                         if (currentStroke != null) {
+                            val isStraight = stateHolder.strokeDrawMode == StrokeDrawMode.STRAIGHT
+                            if (isStraight) {
+                                val dragDist = hypot(ev.x - strokeDownScreenX, ev.y - strokeDownScreenY)
+                                val minDragThresholdPx = 4f * resources.displayMetrics.density
+                                if (dragDist >= minDragThresholdPx && currentStroke.points.size >= 2) {
+                                    val pagePoint = pdfView.mapScreenPointToPage(ev.x, ev.y)
+                                    if (pagePoint != null && pagePoint.pageIndex == currentStroke.pageIndex) {
+                                        val startNorm = currentStroke.points[0]
+                                        val rawEndNorm =
+                                            NormalizedPoint.of(pagePoint.normalizedX, pagePoint.normalizedY)
+                                        val pageSize = pdfView.pdfFile?.getPageSize(currentStroke.pageIndex)
+                                        val pageW = pageSize?.width ?: 1000f
+                                        val pageH = pageSize?.height ?: 1000f
+                                        val snappedEnd = strokeSnapHelper.applyMagneticAxisSnap(
+                                            startNorm,
+                                            rawEndNorm,
+                                            pageW,
+                                            pageH
+                                        )
+                                        currentStroke.points[1] = snappedEnd
+                                    }
+                                    viewModel.commitStroke(
+                                        currentStroke.pageIndex,
+                                        currentStroke.points.toList()
+                                    )
+                                }
+                                stateHolder.activeStroke = null
+                                strokeSnapHelper.cancel()
+                                pdfView.invalidate()
+                                return true
+                            }
+
                             if (currentStroke.isSnappedLine) {
                                 val pagePoint = pdfView.mapScreenPointToPage(ev.x, ev.y)
                                 if (pagePoint != null && pagePoint.pageIndex == currentStroke.pageIndex) {

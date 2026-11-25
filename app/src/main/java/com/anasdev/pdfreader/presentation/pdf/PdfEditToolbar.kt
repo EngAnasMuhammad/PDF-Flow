@@ -28,6 +28,8 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Gesture
+import androidx.compose.material.icons.filled.HorizontalRule
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButtonDefaults
@@ -58,6 +60,7 @@ import androidx.compose.ui.unit.dp
 import com.anasdev.pdfreader.R
 import com.anasdev.pdfreader.domain.model.AnnotationTool
 import com.anasdev.pdfreader.domain.model.Signature
+import com.anasdev.pdfreader.domain.model.StrokeDrawMode
 import com.anasdev.pdfreader.domain.model.TextBox
 import com.anasdev.pdfreader.presentation.state.PdfViewModel
 
@@ -373,10 +376,12 @@ fun StylePopoverCard(
     selectedColorArgb: Int,
     strokeWidthRatio: Float,
     textFontSizeRatio: Float,
+    strokeDrawMode: StrokeDrawMode = StrokeDrawMode.FREEHAND,
     isLandscape: Boolean,
     onSelectColor: (Int) -> Unit,
     onStrokeWidthChange: (Float) -> Unit,
     onFontSizeChange: (Float) -> Unit,
+    onStrokeDrawModeChange: (StrokeDrawMode) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Surface(
@@ -451,6 +456,59 @@ fun StylePopoverCard(
                     )
                 }
             } else {
+                // Stroke Mode Segmented Toggle (Freehand vs Straight)
+                if (activeTool == AnnotationTool.PEN || activeTool == AnnotationTool.HIGHLIGHTER) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
+                            .padding(2.dp),
+                        horizontalArrangement = Arrangement.spacedBy(2.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        val modes = listOf(
+                            StrokeDrawMode.FREEHAND to (Icons.Default.Gesture to R.string.stroke_mode_freehand),
+                            StrokeDrawMode.STRAIGHT to (Icons.Default.HorizontalRule to R.string.stroke_mode_straight)
+                        )
+                        modes.forEach { (mode, iconAndLabel) ->
+                            val (icon, labelRes) = iconAndLabel
+                            val isModeSelected = strokeDrawMode == mode
+                            val bgCol = if (isModeSelected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent
+                            val contentCol = if (isModeSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(bgCol)
+                                    .clickable { onStrokeDrawModeChange(mode) }
+                                    .padding(vertical = 5.dp, horizontal = 8.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.Center
+                                ) {
+                                    Icon(
+                                        imageVector = icon,
+                                        contentDescription = null,
+                                        tint = contentCol,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = stringResource(labelRes),
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = contentCol
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+
                 // Stroke Thickness Slider
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -474,8 +532,10 @@ fun StylePopoverCard(
                         modifier = Modifier.weight(1f)
                     )
                 }
-                if (activeTool == AnnotationTool.PEN || activeTool == AnnotationTool.HIGHLIGHTER) {
-                    Spacer(modifier = Modifier.height(6.dp))
+
+                // Tip: Only show when FREEHAND is active (in Straight mode, it's already instant)
+                if ((activeTool == AnnotationTool.PEN || activeTool == AnnotationTool.HIGHLIGHTER) && strokeDrawMode == StrokeDrawMode.FREEHAND) {
+                    Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = stringResource(R.string.straighten_stroke_tip),
                         style = MaterialTheme.typography.labelSmall,
@@ -523,6 +583,7 @@ fun EditModeFloatingToolbar(
     selectedColorArgb: Int,
     strokeWidthRatio: Float,
     textFontSizeRatio: Float,
+    strokeDrawMode: StrokeDrawMode = StrokeDrawMode.FREEHAND,
     selectedTextBox: TextBox?,
     selectedSignature: Signature? = null,
     isStylePopoverVisible: Boolean,
@@ -535,6 +596,7 @@ fun EditModeFloatingToolbar(
     onSelectColor: (Int) -> Unit,
     onStrokeWidthChange: (Float) -> Unit,
     onFontSizeChange: (Float) -> Unit,
+    onStrokeDrawModeChange: (StrokeDrawMode) -> Unit = {},
     onEditText: (TextBox) -> Unit,
     onDeleteText: (String) -> Unit,
     onDeleteSignature: () -> Unit = {},
@@ -585,10 +647,12 @@ fun EditModeFloatingToolbar(
                     selectedColorArgb = selectedColorArgb,
                     strokeWidthRatio = strokeWidthRatio,
                     textFontSizeRatio = textFontSizeRatio,
+                    strokeDrawMode = strokeDrawMode,
                     isLandscape = true,
                     onSelectColor = onSelectColor,
                     onStrokeWidthChange = onStrokeWidthChange,
-                    onFontSizeChange = onFontSizeChange
+                    onFontSizeChange = onFontSizeChange,
+                    onStrokeDrawModeChange = onStrokeDrawModeChange
                 )
                 Spacer(modifier = Modifier.width(10.dp))
             }
@@ -669,10 +733,12 @@ fun EditModeFloatingToolbar(
                     selectedColorArgb = selectedColorArgb,
                     strokeWidthRatio = strokeWidthRatio,
                     textFontSizeRatio = textFontSizeRatio,
+                    strokeDrawMode = strokeDrawMode,
                     isLandscape = false,
                     onSelectColor = onSelectColor,
                     onStrokeWidthChange = onStrokeWidthChange,
-                    onFontSizeChange = onFontSizeChange
+                    onFontSizeChange = onFontSizeChange,
+                    onStrokeDrawModeChange = onStrokeDrawModeChange
                 )
                 Spacer(modifier = Modifier.height(10.dp))
             }

@@ -173,4 +173,8 @@
 
     <!-- Pen & Highlighter Smart Rule Hint -->
     <string name="straighten_stroke_tip">تلميح: ثبت إصبعك عند نهاية الخط ليصبح مستقيماً</string>
+
+    <!-- Stroke Drawing Mode (Freehand vs Straight) -->
+    <string name="stroke_mode_freehand">حر</string>
+    <string name="stroke_mode_straight">مستقيم</string>
 </resources>

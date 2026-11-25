@@ -18,6 +18,7 @@ import com.anasdev.pdfreader.domain.model.SavedSignature
 import com.anasdev.pdfreader.domain.model.SearchMatch
 import com.anasdev.pdfreader.domain.model.SearchUiState
 import com.anasdev.pdfreader.domain.model.Signature
+import com.anasdev.pdfreader.domain.model.StrokeDrawMode
 import com.anasdev.pdfreader.domain.model.TextBox
 import com.anasdev.pdfreader.domain.model.TextHighlight
 import com.anasdev.pdfreader.domain.repository.AnnotationRepository
@@ -122,6 +123,11 @@ class PdfViewModel @Inject constructor(
     private var lastPenWidth = DEFAULT_PEN_WIDTH
     private var lastHighlighterWidth = DEFAULT_HIGHLIGHTER_WIDTH
     private var lastTextFontSize = DEFAULT_TEXT_FONT_SIZE
+    private var lastPenMode = StrokeDrawMode.FREEHAND
+    private var lastHighlighterMode = StrokeDrawMode.STRAIGHT
+
+    private val _strokeDrawMode = MutableStateFlow(StrokeDrawMode.FREEHAND)
+    val strokeDrawMode: StateFlow<StrokeDrawMode> = _strokeDrawMode.asStateFlow()
 
     private val _selectedColorArgb = MutableStateFlow(DEFAULT_PEN_COLOR)
     val selectedColorArgb: StateFlow<Int> = _selectedColorArgb.asStateFlow()
@@ -350,10 +356,12 @@ class PdfViewModel @Inject constructor(
             AnnotationTool.PEN -> {
                 _selectedColorArgb.value = lastPenColor
                 _strokeWidthRatio.value = lastPenWidth
+                _strokeDrawMode.value = lastPenMode
             }
             AnnotationTool.HIGHLIGHTER -> {
                 _selectedColorArgb.value = lastHighlighterColor
                 _strokeWidthRatio.value = lastHighlighterWidth
+                _strokeDrawMode.value = lastHighlighterMode
             }
             AnnotationTool.TEXT -> {
                 _selectedColorArgb.value = lastTextColor
@@ -365,6 +373,15 @@ class PdfViewModel @Inject constructor(
             AnnotationTool.ERASER, AnnotationTool.NONE -> {
                 _selectedAnnotationId.value = null
             }
+        }
+    }
+
+    fun setStrokeDrawMode(mode: StrokeDrawMode) {
+        _strokeDrawMode.value = mode
+        when (_activeTool.value) {
+            AnnotationTool.PEN -> lastPenMode = mode
+            AnnotationTool.HIGHLIGHTER -> lastHighlighterMode = mode
+            else -> {}
         }
     }
 
@@ -925,6 +942,9 @@ class PdfViewModel @Inject constructor(
         initialSessionSnapshot = emptyMap()
         _isEditMode.value = false
         _activeTool.value = AnnotationTool.NONE
+        lastPenMode = StrokeDrawMode.FREEHAND
+        lastHighlighterMode = StrokeDrawMode.STRAIGHT
+        _strokeDrawMode.value = StrokeDrawMode.FREEHAND
         _selectedAnnotationId.value = null
         undoStack.clear()
         redoStack.clear()
@@ -1338,13 +1358,6 @@ class PdfViewModel @Inject constructor(
         if (total <= 1) return
         val prev = if (state.currentMatchIndex - 1 < 0) total - 1 else state.currentMatchIndex - 1
         _searchUiState.value = state.copy(currentMatchIndex = prev)
-    }
-
-    fun selectMatch(matchIndex: Int) {
-        val state = _searchUiState.value
-        if (matchIndex in state.matches.indices) {
-            _searchUiState.value = state.copy(currentMatchIndex = matchIndex)
-        }
     }
 
     companion object {
